@@ -9,6 +9,7 @@ from pwn import *
 from typing import *
 from itertools import pairwise
 from hashlib import sha256
+from difflib import unified_diff
 
 LLVM_OBJDUMP_PATH = os.environ.get("LLVM_PROJECT_PATH") + "/build/bin/llvm-objdump"
 LLVM_NM_PATH = os.environ.get("LLVM_PROJECT_PATH") + "/build/bin/llvm-nm"
@@ -235,17 +236,12 @@ def substitute_glibc_offset_with_symbol(
             )
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <binary>")
-        sys.exit(1)
-
-    
-    binary = Binary(sys.argv[1])
-    functions_list = extract_function_addr_symbols(sys.argv[1])
+def analyze(path: string) -> tuple[Binary, list[str]]:
+    binary = Binary(path)
+    functions_list = extract_function_addr_symbols(path)
     binary.symbols_binary = {v: k for k, v in binary.symbols.items()}  # addr -> symbol
 
-    r2 = setup_r2_environment(sys.argv[1])
+    r2 = setup_r2_environment(path)
 
     for fn_base_addr, fn_symbol in functions_list:
         fn = Function(fn_base_addr, fn_symbol)
@@ -258,7 +254,7 @@ if __name__ == "__main__":
         fn.end_addr = max([blk.end_addr for blk in blks])
 
         fn_objdump = generate_llvm_objdump_of_function(
-            sys.argv[1], fn.symbol, fn.base_addr, fn.end_addr
+            path, fn.symbol, fn.base_addr, fn.end_addr
         )
 
         fn.label_map = extract_label_addresses(fn_objdump)
@@ -291,5 +287,18 @@ if __name__ == "__main__":
                 for ins in blk.instructions
             ]
 
-    with open(f"cfg_{sys.argv[1]}.txt", "w") as log:
-        log.writelines(binary.invariant_blocks())
+    return binary, binary.invariant_blocks()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <binary1> <binary2>")
+        sys.exit(1)
+
+    bin_before, analyze_before = analyze(sys.argv[1])
+    bin_after, analyze_after = analyze(sys.argv[2])
+
+    diff = unified_diff(analyze_before, analyze_after, n=0)
+
+    print(''.join(diff))
+    
