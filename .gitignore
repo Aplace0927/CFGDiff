@@ -1,0 +1,4 @@
+.venv
+.setup
+build_output
+diff_output

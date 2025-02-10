@@ -226,7 +226,8 @@ def substitute_glibc_offset_with_symbol(
         else:  # Offset is not found in symbol lists, fetch the string from the offset.
 
             try:
-                string = f'"{re.sub(r'\W+', '', binary.string(glibc_offset).decode())}"'
+                found = re.sub(r'\W+', '', binary.string(glibc_offset).decode())
+                string = '"' + found + '"'
             except:
                 string = f"arrray{binary.string(glibc_offset).hex().capitalize()}"
             return re.sub(
@@ -289,6 +290,8 @@ def analyze(path: string) -> tuple[Binary, list[str]]:
 
     return binary, binary.invariant_blocks()
 
+def fetch_filename(fname: str) -> str:
+    return fname.split('/')[-1]
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -298,7 +301,5 @@ if __name__ == "__main__":
     bin_before, analyze_before = analyze(sys.argv[1])
     bin_after, analyze_after = analyze(sys.argv[2])
 
-    diff = unified_diff(analyze_before, analyze_after, n=0)
-
-    print(''.join(diff))
-    
+    with open(f"cfgdiff_{fetch_filename(sys.argv[1])}_{fetch_filename(sys.argv[2])}.diff", "w") as cfgdiff:
+        cfgdiff.writelines(unified_diff(analyze_before, analyze_after, n=0))
