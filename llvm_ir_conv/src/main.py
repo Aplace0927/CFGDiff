@@ -61,7 +61,7 @@ def make_cfg(discord: webhook_send.DiscordWebhookLogger, chash: str) -> tuple[in
         return serial_jobs_configure(discord,
                 [
                     (["find", ".", "-type", "f", "-name", "*-lib-*", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all libraries (except shared library output)
-                    (["find", ".", "-exec", "opt", "-passes=dot-cfg", "-disable-output", "{}", ";"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Convert to CFG
+                    (["find", ".", "-type", "f", "-name", "*-shlib-*", "-exec", "opt", "-passes=dot-cfg", "-disable-output", "{}", ";"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Convert to CFG
                     (["find", ".", "-type", "f", "-name", "*-shlib-*", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all sh-libs.
                 ]
             )
