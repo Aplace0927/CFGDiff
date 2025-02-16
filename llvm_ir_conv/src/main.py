@@ -21,7 +21,7 @@ def serial_jobs_configure(discord: webhook_send.DiscordWebhookLogger, cmds: list
         for cmd, cwd, check in cmds:
             start = time.time()
             proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL)
-            elapsed = start - time.time()
+            elapsed = time.time() - start
 
             if not check and proc.returncode:
                 discord.add_message_to_last_field(f"* :warning: `{' '.join(cmd)}` *returned {proc.returncode}* ({elapsed:.2f} s)")
