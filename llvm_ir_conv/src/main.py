@@ -4,6 +4,7 @@ from typing import Optional
 import subprocess
 import os
 import logging
+import time
 from webhook import webhook_send
 
 MAX_CPU_PER_JOB = 8
@@ -18,9 +19,12 @@ def read_commit_hashes() -> list[tuple[str, str]]:
 def serial_jobs_configure(discord: webhook_send.DiscordWebhookLogger, cmds: list[tuple[list[str], Optional[str], bool]]) -> tuple[int, Optional[str]]:
     try:
         for cmd, cwd, check in cmds:
+            start = time.time()
             proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL)
+            elapsed = start - time.time()
+
             if not check and proc.returncode:
-                discord.add_message_to_last_field(f"* :warning: `{' '.join(cmd)}` *returned {proc.returncode}*")
+                discord.add_message_to_last_field(f"* :warning: `{' '.join(cmd)}` *returned {proc.returncode}* ({elapsed:.2f} s)")
             elif check and proc.returncode:
                 # logging.log(logging.ERROR, f"[{' '.join(cmd)}] @ {cwd} returns {proc.returncode}")
                 discord.add_message_to_last_field(f"* :x: `{' '.join(cmd)}` **returned {proc.returncode}**")
@@ -29,7 +33,7 @@ def serial_jobs_configure(discord: webhook_send.DiscordWebhookLogger, cmds: list
                 return (proc.returncode, "".join(cmd) + "\n" + proc.stderr)
             # logging.log(logging.WARN, f"[{' '.join(cmd)}] @ {cwd} exits successfully")
             else:
-                discord.add_message_to_last_field(f"* :white_check_mark: `{' '.join(cmd)}`")
+                discord.add_message_to_last_field(f"* :white_check_mark: `{' '.join(cmd)}` ({elapsed:.2f} s)")
     
         return (proc.returncode, None)
     except:
@@ -61,10 +65,12 @@ def make_cfg(discord: webhook_send.DiscordWebhookLogger, chash: str) -> tuple[in
         return serial_jobs_configure(discord,
                 [
                     (["find", ".", "-type", "f", "-name", "*-lib-*", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all libraries (except shared library output)
-                    (["find", ".", "-type", "f", "-name", "*-shlib-*", "-exec", "opt", "-passes=dot-cfg", "-disable-output", "{}", ";"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Convert to CFG
-                    (["find", ".", "-type", "f", "-name", "*-shlib-*", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all sh-libs.
+                    (["find", ".", "-type", "f", "-exec", "opt", "-passes=dot-cfg", "-disable-output", "{}", ";"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Convert to CFG
+                    (["find", ".", "-type", "f", "-name", "*.bc", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all bitcodes 
+                    (["find", ".", "-type", "f", "-name", "*.dot", "-exec", CONFIG["CFGDIFF_IRCONV_DIRECTORY"] + "/rename_cdfg_node.py", "{}", ";"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Normalize
+                    (["find", ".", "-type", "f", "-name", "'.*'", "-delete"], CONFIG["BUILD_OUTPUT_DIRECTORY"] + f"/openssl-bcs-{chash}", True), # Remove all un-normalized CFGs
                 ]
-            )
+            )   
     except:
         discord.change_status(webhook_send.DiscordWebhookLogger.WebhookLogStatus.FAIL)
 
