@@ -1,4 +1,7 @@
 .venv
+.vscode
 .setup
 build_output
 diff_output
+asm_lift
+__pycache__

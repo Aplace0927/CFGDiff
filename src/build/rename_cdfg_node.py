@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-
 import sys
 import re
+
 
 def find_node_ssa_id(dat: list[str]) -> dict[str, str]:
     rename_dict = {}
@@ -10,8 +9,10 @@ def find_node_ssa_id(dat: list[str]) -> dict[str, str]:
             rename_dict[line.split()[0].strip("[]")] = "Node" + found[0]
     return rename_dict
 
+
 def unhide(s: str) -> str:
-    return '/'.join(s.split('/')[:-1]) + '/' + s.split('/')[-1].strip('.')
+    return "/".join(s.split("/")[:-1]) + "/" + s.split("/")[-1].strip(".")
+
 
 def main():
     if len(sys.argv) != 2:
@@ -26,5 +27,6 @@ def main():
         for key in rename_dict:
             cfg_data = cfg_data.replace(key, rename_dict[key])
         normalized_cfg.write(cfg_data)
+
 
 main()

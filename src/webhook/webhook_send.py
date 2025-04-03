@@ -3,21 +3,25 @@ from datetime import datetime
 from enum import IntEnum
 import time
 
+
 class DiscordWebhookLogger:
     class WebhookLogStatus(IntEnum):
-        SUCCESS = 0xb0d89b
-        FAIL = 0xdf8c97
-        WORKING = 0x7967c3
+        SUCCESS = 0xB0D89B
+        FAIL = 0xDF8C97
+        WORKING = 0x7967C3
 
     def __init__(self, url, title, desc):
         self.webhook = DiscordWebhook(url, rate_limit_retry=True)
-        self.embed = DiscordEmbed(title, desc, color=DiscordWebhookLogger.WebhookLogStatus.WORKING)
-        self.embed.set_author(name="Aplace", url="https://github.com/Aplace0927", icon_url="https://avatars.githubusercontent.com/u/54824047")
-        self.embed.add_embed_field(name="Time", value=str(datetime.fromtimestamp(time.time())), inline=False)
+        self.embed = DiscordEmbed(
+            title, desc, color=DiscordWebhookLogger.WebhookLogStatus.WORKING
+        )
+        self.embed.add_embed_field(
+            name="Time", value=str(datetime.fromtimestamp(time.time())), inline=False
+        )
         self.embed.set_footer("...from builder")
         self.webhook.add_embed(self.embed)
         self.webhook.execute()
-     
+
         self.webhook.edit()
 
     def add_field(self, fname: str):
@@ -25,7 +29,9 @@ class DiscordWebhookLogger:
         self.webhook.edit()
 
     def add_message_to_last_field(self, msg: str):
-        self.embed.get_embed_fields()[0]["value"] = str(datetime.fromtimestamp(time.time()))
+        self.embed.get_embed_fields()[0]["value"] = str(
+            datetime.fromtimestamp(time.time())
+        )
         self.embed.get_embed_fields()[-1]["value"] += "\n" + msg
         self.webhook.edit()
 
