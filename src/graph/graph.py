@@ -19,9 +19,17 @@ class Graph:
         self.find_vertex_by_addr(e.dst).predecessor.append(e.src)
 
     def assign_level(self):
-        entry_point: Vertex = filter(lambda v: len(v.predecessor) == 0, self.vertices)[
-            0
-        ]
+        entry_point: Vertex = list(
+            filter(lambda v: len(v.predecessor) == 0, self.vertices)
+        )[0]
         entry_point.level = 0
-
-        queue = [entry_point.predecessor]
+        queue: list[Vertex] = [entry_point]
+        while queue != []:
+            v = queue.pop(0)
+            for addr in v.successor.values():
+                lv = self.find_vertex_by_addr(addr).level
+                if lv is None:
+                    self.find_vertex_by_addr(addr).level = v.level + 1
+                else:
+                    self.find_vertex_by_addr(addr).level = max(lv, v.level + 1)
+            queue += [self.find_vertex_by_addr(addr) for addr in v.successor.values()]

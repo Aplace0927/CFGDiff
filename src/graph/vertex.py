@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 
 class Vertex:
@@ -9,7 +10,7 @@ class Vertex:
         self.llvm_ir_optype: list[str] = instruction_parse(self.llvm_ir)
         self.successor: dict[str, int] = {}
         self.predecessor: list[int] = []
-        self.level: int = -1
+        self.level: Optional[int] = None
 
 
 def instruction_parse(llvm_ir: list[str]):
