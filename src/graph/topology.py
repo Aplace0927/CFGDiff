@@ -178,6 +178,6 @@ def build_cfg_from_dot(path: str) -> Graph:
     for e in E:
         G.add_edge(Edge(e.get_source(), e.get_destination()))
 
-    G.assign_level()
+    # G.assign_level()
 
     return G

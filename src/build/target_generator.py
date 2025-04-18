@@ -54,12 +54,13 @@ if __name__ == "__main__":
 
     setup_env()
     cfg_check_list = []
-    commit_hash_list = check_file_commit_hash(sys.argv[1])
+    # commit_hash_list = check_file_commit_hash(sys.argv[1])
+    
     for commit_hash in commit_hash_list:
         git_checkout_to_hash(commit_hash)
         cfg_check_list.append(
             {"hash": commit_hash, "symbol": fetch_symbols_from_file(sys.argv[1])}
         )
 
-    with open("compares_target.json", "w") as out:
+    with open("compares_target_tmp.json", "w") as out:
         json.dump(cfg_check_list, out, indent=4)

@@ -9,10 +9,10 @@ import time
 MAX_CPU_PER_JOB = 8
 
 
-def read_commit_hashes() -> list[tuple[str, str]]:
-    with open("compares", "r") as f:
+def read_commit_hashes(target) -> list[str]:
+    with open(f"./compare/{target}/compares", "r") as f:
         result = [line for line in f.read().splitlines()]
-    return result[0], result[1:]
+    return result
 
 
 def serial_jobs_configure(
@@ -126,16 +126,15 @@ if __name__ == "__main__":
     for key in CONFIG:
         os.environ[key] = CONFIG[key]
 
-    commit_hash_pairs = read_commit_hashes()
+    target_name = "statemem_client"
 
-    target_name, commits = commit_hash_pairs
+    commit_hashes = read_commit_hashes(target_name)
 
-    print(f"{target_name} for {commits}.")
     serial_jobs_configure(
         [(["mkdir", f"{target_name}"], CONFIG["BUILD_OUTPUT_DIRECTORY"], False)]
     )
 
-    for commit in commits:
+    for commit in commit_hashes:
         ir_build(target_name, commit)
         make_cfg(target_name, commit)
 
