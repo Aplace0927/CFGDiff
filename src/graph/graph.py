@@ -26,10 +26,15 @@ class Graph:
         queue: list[Vertex] = [entry_point]
         while queue != []:
             v = queue.pop(0)
+
             for addr in v.successor.values():
                 lv = self.find_vertex_by_addr(addr).level
                 if lv is None:
                     self.find_vertex_by_addr(addr).level = v.level + 1
+                    queue.append(
+                        self.find_vertex_by_addr(addr)
+                    )  # Only add unvisited nodes
                 else:
-                    self.find_vertex_by_addr(addr).level = max(lv, v.level + 1)
-            queue += [self.find_vertex_by_addr(addr) for addr in v.successor.values()]
+                    self.find_vertex_by_addr(addr).level = min(
+                        lv, v.level + 1
+                    )  # How fast to reach this node

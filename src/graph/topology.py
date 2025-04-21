@@ -1,11 +1,10 @@
-import functools
 import itertools
 import pydot
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-import re
 import sys
 import os
+from typing import Optional
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -41,10 +40,35 @@ def node_label_preprocess(lab: str):
     return int(ssa_id.strip(":\n")), inst_acc, nextblk
 
 
-def vertex_edit_distance(v_old: Vertex, v_new: Vertex) -> int:
+def string_edit_distance(s_old: str, s_new: str) -> float:
+    dp_mat = np.zeros((len(s_new) + 1, len(s_old) + 1), dtype=np.uint32)
+    for i, j in itertools.product(range(len(s_new) + 1), range(len(s_old) + 1)):
+        if i == 0:
+            dp_mat[i][j] = j
+        elif j == 0:
+            dp_mat[i][j] = i
+        elif s_new[i - 1] == s_old[j - 1]:
+            dp_mat[i][j] = dp_mat[i - 1][j - 1]
+        else:
+            dp_mat[i][j] = (
+                min(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
+            )
+    return (
+        1 - (dp_mat[-1][-1] / max_len)
+        if (max_len := max(len(s_new), len(s_old)))
+        else 1.0
+    )
+
+
+def vertex_edit_distance(v_old: Vertex, v_new: Vertex) -> float:
     inst_old = v_old.llvm_ir_optype
     inst_new = v_new.llvm_ir_optype
-    dp_mat = np.zeros((len(inst_new) + 1, len(inst_old) + 1), dtype=np.uint32)
+    dp_mat = np.zeros((len(inst_new) + 1, len(inst_old) + 1), dtype=np.float32)
+
+    if len(inst_new) == 0 or len(inst_old) == 0:
+        level_diff = 0xFFFFFFFF  # math.inf causes error in scipyl.linear_sum_assignment
+    else:
+        level_diff = abs(v_old.level - v_new.level)
 
     for i, j in itertools.product(range(len(inst_new) + 1), range(len(inst_old) + 1)):
         if i == 0:
@@ -54,26 +78,43 @@ def vertex_edit_distance(v_old: Vertex, v_new: Vertex) -> int:
         elif inst_new[i - 1] == inst_old[j - 1]:
             dp_mat[i][j] = dp_mat[i - 1][j - 1]
         else:
-            dp_mat[i][j] = (
-                min(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
-            )
-
-    return dp_mat[-1][-1]
+            if inst_new[i - 1].startswith("call") and inst_old[j - 1].startswith(
+                "call"
+            ):
+                dp_mat[i][j] = max(
+                    dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]
+                ) + string_edit_distance(inst_new[i - 1], inst_old[j - 1])
+            else:
+                dp_mat[i][j] = (
+                    max(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
+                )
+    return dp_mat[-1][-1] + level_diff
 
 
 def match_vertice_forward(v: list[tuple[int, int]], src: int) -> int:
-    _, dst = list(filter(lambda pair: pair[0] == src, v))[0]
-    return dst
+    if len((found := list(filter(lambda pair: pair[0] == src, v)))) == 0:
+        return None
+    else:
+        return found[0][1]
 
 
 def match_vertice_backward(v: list[tuple[int, int]], dst: int) -> int:
-    src, _ = list(filter(lambda pair: pair[1] == dst, v))[0]
-    return src
+    if len((found := list(filter(lambda pair: pair[1] == dst, v)))) == 0:
+        return None
+    else:
+        return found[0][0]
 
 
-def graph_isomorphism(
-    g_old: Graph, g_new: Graph
-) -> tuple[list[tuple[Vertex, Vertex]], tuple[list[Edge], list[Edge]]]:
+def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
+    list[tuple[Vertex, Vertex]],  # Same Vertices       - Mapping in (Old, New)
+    list[tuple[Vertex, Vertex]],  # Different Vertices  - Mapping in (Old, New)
+    list[
+        tuple[Optional[int], Optional[int]]
+    ],  # Vertex Address     - Mapping in (Old, New)
+    list[tuple[Edge, Edge]],  # Conserved Edges     - Mapping in (Old, New)
+    list[Edge],  # Deleted Edges
+    list[Edge],  # Added Edges
+]:
     #
     # G = <V, E>, where E := V -> V
     #
@@ -103,7 +144,7 @@ def graph_isomorphism(
     #       Dim: [size_v_g_new * size_v_g_old]
     #       edit_dist[i][j] := d(Vo_i, Ve_j)
 
-    edit_dist = np.empty((size_v_array, size_v_array), dtype=np.uint32)
+    edit_dist = np.empty((size_v_array, size_v_array), dtype=np.float32)
     for (old_idx, old_node), (new_idx, new_node) in itertools.product(
         enumerate(g_old.vertices), enumerate(g_new.vertices)
     ):
@@ -117,8 +158,15 @@ def graph_isomorphism(
         (g_old.vertices[old_id], g_new.vertices[new_id])
         for (old_id, new_id) in zip(v_old_id, v_new_id)
     ]
+
     match_vertices_addr = [
         (v_old.blk_addr, v_new.blk_addr) for (v_old, v_new) in match_vertices_pair
+    ]
+
+    same_vertices = [
+        (vo, vn)
+        for (vo, vn) in match_vertices_pair
+        if vo.llvm_ir_optype == vn.llvm_ir_optype
     ]
 
     diff_vertices = [
@@ -138,8 +186,20 @@ def graph_isomorphism(
     # For each edge, both source and destination of edge
     # should be a matched basic blocks.
 
-    g_old_edge_addr = [(v.src, v.dst) for v in g_old.edges]
-    g_new_edge_addr = [(v.src, v.dst) for v in g_new.edges]
+    g_old_edge_addr = {(v.src, v.dst): v for v in g_old.edges}
+    g_new_edge_addr = {(v.src, v.dst): v for v in g_new.edges}
+
+    conserved_edge = [
+        (e_old, g_new_edge_addr[(e_new_src, e_new_dst)])
+        for e_old in g_old.edges
+        if (
+            (
+                e_new_src := match_vertice_forward(match_vertices_addr, e_old.src),
+                e_new_dst := match_vertice_forward(match_vertices_addr, e_old.dst),
+            )
+            in g_new_edge_addr
+        )
+    ]
 
     deleted_edge = [
         e_old
@@ -161,7 +221,14 @@ def graph_isomorphism(
         )
     ]
 
-    return (diff_vertices, (deleted_edge, added_edge))
+    return (
+        same_vertices,
+        diff_vertices,
+        match_vertices_addr,
+        conserved_edge,
+        deleted_edge,
+        added_edge,
+    )
 
 
 def build_cfg_from_dot(path: str) -> Graph:
@@ -178,6 +245,6 @@ def build_cfg_from_dot(path: str) -> Graph:
     for e in E:
         G.add_edge(Edge(e.get_source(), e.get_destination()))
 
-    # G.assign_level()
+    G.assign_level()
 
     return G

@@ -3,8 +3,10 @@ from typing import Optional
 
 
 class Vertex:
-    def __init__(self, blk_addr: str = "-1", ssa_id: int = -1, llvm_ir: list[str] = []):
-        self.blk_addr: int = int(blk_addr.strip("Node"), 0)
+    def __init__(self, blk_addr: str = "", ssa_id: int = -1, llvm_ir: list[str] = []):
+        self.blk_addr: Optional[int] = (
+            None if blk_addr == "" else int(blk_addr.strip("Node"), 0)
+        )
         self.ssa_id: int = ssa_id
         self.llvm_ir: list[str] = llvm_ir
         self.llvm_ir_optype: list[str] = instruction_parse(self.llvm_ir)
