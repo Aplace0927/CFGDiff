@@ -8,6 +8,7 @@ from colorama import Fore, Back, Style
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import src.graph.topology as topology
+import src.visual.diffview as diffview
 
 TARGET = "statemem_client"
 
@@ -68,13 +69,13 @@ if __name__ == "__main__":
         comp = json.load(f)
 
     for v_new, v_old in pairwise(comp):
-    
-    #--Suggestion. 
-    # Get a "Patch" with v[0] and v[1], and
-    # Compare the (v[0], {v[2], v[3] ... v[n]}) to detect the diff-ed vulnerability
-    
-    # v_new = comp[0]
-    # for v_old in comp[1:]:
+
+        # --Suggestion.
+        # Get a "Patch" with v[0] and v[1], and
+        # Compare the (v[0], {v[2], v[3] ... v[n]}) to detect the diff-ed vulnerability
+
+        # v_new = comp[0]
+        # for v_old in comp[1:]:
 
         new_hash, new_fn = v_new["hash"], set(v_new["symbol"])
         old_hash, old_fn = v_old["hash"], set(v_old["symbol"])
@@ -113,7 +114,9 @@ if __name__ == "__main__":
                 f"build_output/{TARGET}/openssl-bcs-{old_hash}/{f}.dot"
             )
 
-            (v_diff, (e_old, e_new)) = topology.graph_isomorphism(Go, Gn)
+            (v_same, v_diff, v_addr_matching, e_con, e_old, e_new) = (
+                topology.graph_isomorphism(Go, Gn)
+            )
 
             if v_diff == [] and e_old == [] and e_new == []:
                 continue
@@ -155,33 +158,15 @@ if __name__ == "__main__":
                     + f"+ {edge.label}:\n+ {v_src.llvm_ir_optype} ->\n+ {v_dst.llvm_ir_optype}\n"
                 )
 
-"""             with open("diffrent.txt", "a") as dt:
-                dt.write("-" * 50 + "\n")
-                dt.write(f"{f}@{old_hash} -> {f}@{new_hash}\n")
-                dt.write("- V -" + "-" * 45 + "\n")
-                if v_diff != []:
-                    for v_old, v_new in v_diff:
-                        if v_old.llvm_ir != []:
-                            dt.write(
-                                "- [\n\t" + ";\n- \t".join(v_old.llvm_ir) + "\n- ]\n"
-                            )
-                        if v_new.llvm_ir != []:
-                            dt.write(
-                                "+ [\n\t" + ";\n+ \t".join(v_new.llvm_ir) + "\n+ ]\n"
-                            )
-                dt.write("- E -" + "-" * 45 + "\n")
-                for edge in e_old:
-                    v_src = Go.find_vertex_by_addr(edge.src)
-                    v_dst = Go.find_vertex_by_addr(edge.dst)
-                    dt.write(
-                        f"- {edge.label}:\n- {v_src.llvm_ir_optype} ->\n- {v_dst.llvm_ir_optype}\n"
-                    )
-
-                for edge in e_new:
-                    v_src = Gn.find_vertex_by_addr(edge.src)
-                    v_dst = Gn.find_vertex_by_addr(edge.dst)
-                    dt.write(
-                        f"+ {edge.label}:\n+ {v_src.llvm_ir_optype} ->\n+ {v_dst.llvm_ir_optype}\n"
-                    ) """
+            diffview.generate_diffview(
+                v_same,
+                v_diff,
+                v_addr_matching,
+                e_con,
+                e_old,
+                e_new,
+                func_name=f,
+                commit_hash=new_hash + "_" + old_hash,
+            )
 
 # Edit distance calculation should include the function symbol.
