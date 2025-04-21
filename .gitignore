@@ -2,6 +2,7 @@
 .vscode
 .setup
 build_output
+diffviews
 diff_output
 asm_lift
 __pycache__
