@@ -5,12 +5,12 @@ from scipy.optimize import linear_sum_assignment
 import sys
 import os
 from typing import Optional
+import networkx as nx
+from matplotlib import pyplot as plt
+import re
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-from src.graph.graph import Graph
 from src.graph.vertex import Vertex
-from src.graph.edge import Edge
 
 
 def node_label_preprocess(lab: str):
@@ -38,6 +38,26 @@ def node_label_preprocess(lab: str):
         else:
             inst_acc.append(i.strip())
     return int(ssa_id.strip(":\n")), inst_acc, nextblk
+
+
+def instruction_parse(llvm_ir: list[str]):
+    res = []
+    for inst in llvm_ir:
+        inst_split = inst.split()
+        if "call" in inst:
+            func_name = re.findall(
+                "(@[\w]*)\(", inst
+            )  # %ssa_id = call [type] @[func_name](args, *)
+            if len(func_name) == 0:
+                res.append("call ")
+            else:
+                res.append(f"call {func_name[0]}")
+        elif inst_split[1] == "=":
+            res.append(inst_split[2])
+        else:
+            res.append(inst_split[0])
+
+    return res
 
 
 def string_edit_distance(s_old: str, s_new: str) -> float:
@@ -105,15 +125,15 @@ def match_vertice_backward(v: list[tuple[int, int]], dst: int) -> int:
         return found[0][0]
 
 
-def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
+def graph_isomorphism(g_old: nx.DiGraph, g_new: nx.DiGraph) -> tuple[
     list[tuple[Vertex, Vertex]],  # Same Vertices       - Mapping in (Old, New)
     list[tuple[Vertex, Vertex]],  # Different Vertices  - Mapping in (Old, New)
+    list[tuple[str, str]],  # Vertex Address     - Mapping in (Old, New)
     list[
-        tuple[Optional[int], Optional[int]]
-    ],  # Vertex Address     - Mapping in (Old, New)
-    list[tuple[Edge, Edge]],  # Conserved Edges     - Mapping in (Old, New)
-    list[Edge],  # Deleted Edges
-    list[Edge],  # Added Edges
+        tuple[tuple[str, str], tuple[str, str]]
+    ],  # Conserved Edges     - Mapping in (Old, New)
+    list[tuple[str, str]],  # Deleted Edges
+    list[tuple[str, str]],  # Added Edges
 ]:
     #
     # G = <V, E>, where E := V -> V
@@ -127,35 +147,49 @@ def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
     # 1. Match Vertex-Vertex
     #   1.1. Put extra null node for excessive nodes, easier graph matching.
 
-    size_v_g_old = len(g_old.vertices)
-    size_v_g_new = len(g_new.vertices)
+    size_v_g_old = g_old.number_of_nodes()
+    size_v_g_new = g_new.number_of_nodes()
     size_v_array = max(size_v_g_old, size_v_g_new)
 
     if size_v_g_new > size_v_g_old:
-        for _ in range(size_v_g_new - size_v_g_old):
-            g_old.add_vertex(Vertex())
+        for idx in range(size_v_g_new - size_v_g_old):
+            g_old.add_node(f"dummy_{idx}", vertex=Vertex())
     elif size_v_g_old > size_v_g_new:
-        for _ in range(size_v_g_old - size_v_g_new):
-            g_new.add_vertex(Vertex())
+        for idx in range(size_v_g_old - size_v_g_new):
+            g_new.add_node(f"dummy_{idx}", vertex=Vertex())
 
-    assert len(g_old.vertices) == len(g_new.vertices)
+    assert g_old.number_of_nodes() == g_new.number_of_nodes()
 
     #   1.2. Setup the vertex-vertex edit distance graph
     #       Dim: [size_v_g_new * size_v_g_old]
     #       edit_dist[i][j] := d(Vo_i, Ve_j)
 
     edit_dist = np.empty((size_v_array, size_v_array), dtype=np.float32)
+
+    g_old_array_index = {
+        old_idx: old_node for old_idx, old_node in enumerate(g_old.nodes)
+    }
+    g_new_array_index = {
+        new_idx: new_node for new_idx, new_node in enumerate(g_new.nodes)
+    }
+
     for (old_idx, old_node), (new_idx, new_node) in itertools.product(
-        enumerate(g_old.vertices), enumerate(g_new.vertices)
+        enumerate(g_old.nodes), enumerate(g_new.nodes)
     ):
-        edit_dist[old_idx][new_idx] = vertex_edit_distance(old_node, new_node)
+        edit_dist[old_idx][new_idx] = vertex_edit_distance(
+            g_old.nodes[old_node]["vertex"], g_new.nodes[new_node]["vertex"]
+        )
 
     # 2. Min-cost Bipartite Graph Matching
 
     v_old_id, v_new_id = map(list, linear_sum_assignment(edit_dist))
+
     match_cost = edit_dist[v_old_id, v_new_id]
     match_vertices_pair = [
-        (g_old.vertices[old_id], g_new.vertices[new_id])
+        (
+            g_old.nodes[g_old_array_index[old_id]]["vertex"],
+            g_new.nodes[g_new_array_index[new_id]]["vertex"],
+        )
         for (old_id, new_id) in zip(v_old_id, v_new_id)
     ]
 
@@ -186,18 +220,15 @@ def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
     # For each edge, both source and destination of edge
     # should be a matched basic blocks.
 
-    g_old_edge_addr = {(v.src, v.dst): v for v in g_old.edges}
-    g_new_edge_addr = {(v.src, v.dst): v for v in g_new.edges}
-
     conserved_edge = [
-        (e_old, g_new_edge_addr[(e_new_src, e_new_dst)])
+        (e_old, (e_new_src, e_new_dst))
         for e_old in g_old.edges
         if (
             (
-                e_new_src := match_vertice_forward(match_vertices_addr, e_old.src),
-                e_new_dst := match_vertice_forward(match_vertices_addr, e_old.dst),
+                e_new_src := match_vertice_forward(match_vertices_addr, e_old[0]),
+                e_new_dst := match_vertice_forward(match_vertices_addr, e_old[1]),
             )
-            in g_new_edge_addr
+            in g_new.edges
         )
     ]
 
@@ -205,9 +236,9 @@ def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
         e_old
         for e_old in g_old.edges
         if (
-            (p_src := match_vertice_forward(match_vertices_addr, e_old.src)) == -1
-            or (p_dst := match_vertice_forward(match_vertices_addr, e_old.dst)) == -1
-            or (p_src, p_dst) not in g_new_edge_addr
+            (p_src := match_vertice_forward(match_vertices_addr, e_old[0])) == -1
+            or (p_dst := match_vertice_forward(match_vertices_addr, e_old[1])) == -1
+            or (p_src, p_dst) not in g_new.edges
         )
     ]
 
@@ -215,9 +246,9 @@ def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
         e_new
         for e_new in g_new.edges
         if (
-            (p_src := match_vertice_backward(match_vertices_addr, e_new.src)) == -1
-            or (p_dst := match_vertice_backward(match_vertices_addr, e_new.dst)) == -1
-            or (p_src, p_dst) not in g_old_edge_addr
+            (p_src := match_vertice_backward(match_vertices_addr, e_new[0])) == -1
+            or (p_dst := match_vertice_backward(match_vertices_addr, e_new[1])) == -1
+            or (p_src, p_dst) not in g_old.edges
         )
     ]
 
@@ -231,20 +262,40 @@ def graph_isomorphism(g_old: Graph, g_new: Graph) -> tuple[
     )
 
 
-def build_cfg_from_dot(path: str) -> Graph:
-    g = pydot.graph_from_dot_file(path)
+def build_cfg_from_dot(path: str) -> nx.DiGraph:
+    G: nx.DiGraph = nx.nx_pydot.read_dot(path)
+    CFG: nx.DiGraph = nx.DiGraph()
+    """
+    Preprocess the graph notation.
+    """
 
-    G = Graph()
-    V = g[0].get_node_list()
-    E = g[0].get_edge_list()
+    for src, dst, branch in list(G.edges.data()):
+        if len(data := src.split(":")) == 2:
+            name, branch_from = data
+            G.remove_edge(src, dst)
+            G.add_edge(name, dst, branch=branch_from)
 
-    for v in V:
-        ssa_id, llvm_inst, jmp_target = node_label_preprocess(v.get_label())
-        G.add_vertex(Vertex(v.get_name(), ssa_id, llvm_inst))
+    for name, prop in list(G.nodes.data()):
+        if len(data := name.split(":")) == 1:  # Node[addr]
+            node_ssa_id, node_llvm_ir, node_br = node_label_preprocess(prop["label"])
+            CFG.add_node(
+                name, vertex=Vertex(name, ssa_id=node_ssa_id, llvm_ir=node_llvm_ir)
+            )
+        elif len(data) == 2:  # Node[addr]:branchname
+            G.remove_node(name)
+        else:
+            raise Exception("Invalid node name format")
 
-    for e in E:
-        G.add_edge(Edge(e.get_source(), e.get_destination()))
+    for src, dst, branch in list(G.edges.data()):
+        if len(data := src.split(":")) == 2:
+            name, branch_from = data
+            CFG.add_edge(name, dst, branch=f"{name}:{dst}:{branch_from}")
+        else:
+            CFG.add_edge(src, dst, branch=f"{src}:{dst}:next")
 
-    G.assign_level()
+    for node, lvl in nx.single_source_shortest_path_length(
+        CFG, [n for n in CFG.nodes if CFG.in_degree(n) == 0][0]
+    ).items():
+        CFG.nodes[node]["vertex"].level = lvl
 
-    return G
+    return CFG

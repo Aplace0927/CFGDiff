@@ -5,6 +5,7 @@ import itertools
 import sys
 from itertools import pairwise
 from colorama import Fore, Back, Style
+import networkx as nx
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import src.graph.topology as topology
@@ -143,30 +144,30 @@ if __name__ == "__main__":
                         )
 
             for edge in e_old:
-                v_src = Go.find_vertex_by_addr(edge.src)
-                v_dst = Go.find_vertex_by_addr(edge.dst)
+                v_src, v_dst = Go.nodes[edge[0]]["vertex"], Go.nodes[edge[1]]["vertex"]
+
                 print(
                     Fore.RED
-                    + f"- {edge.label}:\n- {v_src.llvm_ir_optype} ->\n- {v_dst.llvm_ir_optype}\n"
+                    + f"- {Go.edges[edge]['branch']}:\n- {v_src.llvm_ir_optype} ->\n- {v_dst.llvm_ir_optype}\n"
                 )
 
             for edge in e_new:
-                v_src = Gn.find_vertex_by_addr(edge.src)
-                v_dst = Gn.find_vertex_by_addr(edge.dst)
+                v_src, v_dst = Gn.nodes[edge[0]]["vertex"], Gn.nodes[edge[1]]["vertex"]
+
                 print(
                     Fore.GREEN
-                    + f"+ {edge.label}:\n+ {v_src.llvm_ir_optype} ->\n+ {v_dst.llvm_ir_optype}\n"
+                    + f"+ {Gn.edges[edge]['branch']}:\n+ {v_src.llvm_ir_optype} ->\n+ {v_dst.llvm_ir_optype}\n"
                 )
 
-            diffview.generate_diffview(
+            """diffview.generate_diffview(
                 v_same,
                 v_diff,
-                v_addr_matching,
+                v_addr_matching,``
                 e_con,
                 e_old,
                 e_new,
                 func_name=f,
                 commit_hash=new_hash + "_" + old_hash,
-            )
+            )"""
 
 # Edit distance calculation should include the function symbol.
