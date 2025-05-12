@@ -55,7 +55,7 @@ if __name__ == "__main__":
     setup_env()
     cfg_check_list = []
     # commit_hash_list = check_file_commit_hash(sys.argv[1])
-    
+
     for commit_hash in commit_hash_list:
         git_checkout_to_hash(commit_hash)
         cfg_check_list.append(

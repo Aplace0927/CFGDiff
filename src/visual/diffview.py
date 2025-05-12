@@ -1,12 +1,12 @@
 import os
-import sys
 import subprocess
+import sys
+
 import pydot
-from typing import Optional
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from ..graph import vertex, edge, topology
+from ..graph import edge, topology, vertex
 
 RED_COLOR = "#e78284"
 GREEN_COLOR = "#a6d189"

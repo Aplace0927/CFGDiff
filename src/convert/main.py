@@ -1,11 +1,9 @@
+import json
 import os
 import subprocess
-import json
-import itertools
 import sys
-from itertools import pairwise
-from colorama import Fore, Back, Style
-import networkx as nx
+
+from colorama import Back, Fore, Style
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import src.graph.topology as topology
@@ -69,7 +67,16 @@ if __name__ == "__main__":
     with open(f"compare/{TARGET}/compares_target.json", "r") as f:
         comp = json.load(f)
 
-    for v_new, v_old in pairwise(comp):
+    v_new = comp[0]
+    new_hash, new_fn = v_new["hash"], set(v_new["symbol"])
+    new_built_set = set(
+        [
+            fname[:-4]
+            for fname in os.listdir(f"build_output/{TARGET}/openssl-bcs-{new_hash}/")
+        ]
+    )
+
+    for v_old in comp[1:]:
 
         # --Suggestion.
         # Get a "Patch" with v[0] and v[1], and
@@ -78,17 +85,8 @@ if __name__ == "__main__":
         # v_new = comp[0]
         # for v_old in comp[1:]:
 
-        new_hash, new_fn = v_new["hash"], set(v_new["symbol"])
         old_hash, old_fn = v_old["hash"], set(v_old["symbol"])
 
-        new_built_set = set(
-            [
-                fname[:-4]
-                for fname in os.listdir(
-                    f"build_output/{TARGET}/openssl-bcs-{new_hash}/"
-                )
-            ]
-        )
         old_built_set = set(
             [
                 fname[:-4]

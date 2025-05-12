@@ -3,7 +3,6 @@
 from typing import Optional
 import subprocess
 import os
-import logging
 import time
 
 MAX_CPU_PER_JOB = 8
@@ -24,23 +23,20 @@ def serial_jobs_configure(
         elapsed = time.time() - start
 
         if not check and proc.returncode:
-            # discord.add_message_to_last_field(f"* :warning: `{' '.join(cmd)}` *returned {proc.returncode}* ({elapsed:.2f} s)")
+            # Job exit with error, but ignorable
             pass
         elif check and proc.returncode:
-            # logging.log(logging.ERROR, f"[{' '.join(cmd)}] @ {cwd} returns {proc.returncode}")
+            # Job exit with error, and pass to user
             return (proc.returncode, "".join(cmd) + "\n" + proc.stderr)
         else:
-            # logging.log(logging.WARN, f"[{' '.join(cmd)}] @ {cwd} exits successfully")
-            # discord.add_message_to_last_field(f"* :white_check_mark: `{' '.join(cmd)}` ({elapsed:.2f} s)")
+            # Job exit successfully
             pass
 
     return (proc.returncode, None)
 
 
 def ir_build(target: str, chash: str) -> tuple[int, Optional[str]]:
-    # logging.log(logging.WARN, f"Start building CHASH={chash}")
     cleanup()
-    # discord.add_field(f":information_source: Generating LLVM BC of `{chash}`")
     return serial_jobs_configure(
         [
             (["git", "checkout", chash], CONFIG["OPENSSL_GIT_DIRECTORY"], True),
@@ -137,5 +133,3 @@ if __name__ == "__main__":
     for commit in commit_hashes:
         ir_build(target_name, commit)
         make_cfg(target_name, commit)
-
-        # webhook_send.success_webhook([f"Success Diff {vulnerable} {patched}"])

@@ -1,17 +1,14 @@
 import itertools
-import pydot
+import os
+import sys
+
+import networkx as nx
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-import sys
-import os
-from typing import Optional
-import networkx as nx
-from matplotlib import pyplot as plt
-import re
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from src.graph.vertex import Vertex
 from src.graph.edge import Edge
+from src.graph.vertex import Vertex
 
 
 def node_label_preprocess(lab: str):
@@ -39,26 +36,6 @@ def node_label_preprocess(lab: str):
         else:
             inst_acc.append(i.strip())
     return int(ssa_id.strip(":\n")), inst_acc, nextblk
-
-
-def instruction_parse(llvm_ir: list[str]):
-    res = []
-    for inst in llvm_ir:
-        inst_split = inst.split()
-        if "call" in inst:
-            func_name = re.findall(
-                "(@[\w]*)\(", inst
-            )  # %ssa_id = call [type] @[func_name](args, *)
-            if len(func_name) == 0:
-                res.append("call ")
-            else:
-                res.append(f"call {func_name[0]}")
-        elif inst_split[1] == "=":
-            res.append(inst_split[2])
-        else:
-            res.append(inst_split[0])
-
-    return res
 
 
 def string_edit_distance(s_old: str, s_new: str) -> float:

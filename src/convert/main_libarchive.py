@@ -1,10 +1,9 @@
+import json
 import os
 import subprocess
-import json
-import itertools
 import sys
-from itertools import pairwise
-from colorama import Fore, Back, Style
+
+from colorama import Back, Fore, Style
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import src.graph.topology as topology
