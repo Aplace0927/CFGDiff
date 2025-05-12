@@ -6,7 +6,7 @@ from typing import Optional
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from ..graph import graph, vertex, edge, topology
+from ..graph import vertex, edge, topology
 
 RED_COLOR = "#e78284"
 GREEN_COLOR = "#a6d189"
@@ -18,7 +18,7 @@ WHITE_COLOR = "#c6d0f5"
 def generate_diffview(
     vertex_same: list[tuple[vertex.Vertex, vertex.Vertex]],
     vertex_diff: list[tuple[vertex.Vertex, vertex.Vertex]],
-    vertex_addr_matching: list[tuple[Optional[int], Optional[int]]],
+    vertex_addr_matching: list[tuple[str, str]],
     edge_same: list[tuple[edge.Edge, edge.Edge]],
     edge_del: list[edge.Edge],
     edge_add: list[edge.Edge],
@@ -42,13 +42,13 @@ def generate_diffview(
     # Add vertices and edges from both graphs to the diff graph
     same_pairs = []
     for v_same_old, v_same_new in vertex_same:
-        same_pairs.append((v_same_old.blk_addr, v_same_new.blk_addr))
+        same_pairs.append((v_same_old.addr(), v_same_new.addr()))
         diff_graph.add_node(
             pydot.Node(
-                f"{hex(v_same_old.blk_addr)}_{hex(v_same_new.blk_addr)}",
+                f"{hex(v_same_old.addr())}_{hex(v_same_new.addr())}",
                 label="{"
                 + f"{str(v_same_old.level)}_{str(v_same_new.level)}\l"
-                + f"{hex(v_same_old.blk_addr)}_{hex(v_same_new.blk_addr)}\l|\t"
+                + f"{hex(v_same_old.addr())}_{hex(v_same_new.addr())}\l|\t"
                 + "\l\t".join(v_same_old.llvm_ir_optype)
                 + "}",
                 shape="record",
@@ -75,10 +75,10 @@ def generate_diffview(
             else:  # Empty -> Something
                 old_node = null_node
                 new_node = pydot.Node(
-                    f"NULL_{hex(v_diff_new.blk_addr)}",
+                    f"NULL_{hex(v_diff_new.addr())}",
                     label="{"
                     + f"NULL_{str(v_diff_new.level)}\l"
-                    + f"NULL_{hex(v_diff_new.blk_addr)}\l|\t"
+                    + f"NULL_{hex(v_diff_new.addr())}\l|\t"
                     + "\l\t".join(v_diff_new.llvm_ir_optype)
                     + "}",
                     shape="record",
@@ -91,10 +91,10 @@ def generate_diffview(
         else:
             if v_diff_new.llvm_ir_optype == []:  # Something -> Empty
                 old_node = pydot.Node(
-                    f"{hex(v_diff_old.blk_addr)}_NULL",
+                    f"{hex(v_diff_old.addr())}_NULL",
                     label="{"
                     + f"{str(v_diff_old.level)}_NULL\l"
-                    + f"{hex(v_diff_old.blk_addr)}_NULL\l|\t"
+                    + f"{hex(v_diff_old.addr())}_NULL\l|\t"
                     + "\l\t".join(v_diff_old.llvm_ir_optype)
                     + "}",
                     shape="record",
@@ -104,17 +104,16 @@ def generate_diffview(
                 )
                 new_node = null_node
                 diff_graph.add_node(old_node)
-                # diff_graph.add_node(new_node)
 
             else:  # Something -> Something
                 clustered_pairs.append(
-                    f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}"
+                    f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}"
                 )
                 old_node = pydot.Node(
-                    f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}_old",
+                    f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_old",
                     label="{"
                     + f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_old\l"
-                    + f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}\l|\t"
+                    + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}\l|\t"
                     + "\l\t".join(v_diff_old.llvm_ir_optype)
                     + "}",
                     shape="record",
@@ -123,10 +122,10 @@ def generate_diffview(
                     fillcolor=RED_COLOR,
                 )
                 new_node = pydot.Node(
-                    f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}_new",
+                    f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_new",
                     label="{"
                     + f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_new\l"
-                    + f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}\l|\t"
+                    + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}\l|\t"
                     + "\l\t".join(v_diff_new.llvm_ir_optype)
                     + "}",
                     shape="record",
@@ -135,9 +134,9 @@ def generate_diffview(
                     fillcolor=GREEN_COLOR,
                 )
                 cluster = pydot.Subgraph(
-                    f"cluster_{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}",
+                    f"cluster_{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}",
                     label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_diff\l"
-                    + f"{hex(v_diff_old.blk_addr)}_{hex(v_diff_new.blk_addr)}",
+                    + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}",
                     shape="record",
                     fontname="Courier",
                     color=GREY_COLOR,
@@ -146,53 +145,50 @@ def generate_diffview(
                 cluster.add_node(new_node)
                 diff_graph.add_subgraph(cluster)
 
-    to_text = lambda s: "NULL" if s is None else hex(s)
+    to_text = lambda s: "NULL" if (x := s.strip("Node")) == "" else x
+    to_addr = lambda s: "NULL" if (x := s.strip("Node")) == "" else int(x, 0)
 
     for edge_same_old, edge_same_new in edge_same:
-        if (edge_same_old.src, edge_same_new.src) in same_pairs:
-            if (edge_same_old.dst, edge_same_new.dst) in same_pairs:
+        if (to_addr(edge_same_old[0]), to_addr(edge_same_new[0])) in same_pairs:
+            if (to_addr(edge_same_old[1]), to_addr(edge_same_new[1])) in same_pairs:
                 # Source same, Dest same (Node -> Node)
-                edge_source = (
-                    f"{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}"
-                )
+                edge_source = f"{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}"
                 edge_destination = (
-                    f"{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}"
+                    f"{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}"
                 )
                 options = {}
             else:
                 # Source same, Dest diff (Node -> Cluster)
-                edge_source = (
-                    f"{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}"
-                )
+                edge_source = f"{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}"
                 edge_destination = (
-                    f"{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}_old"
+                    f"{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}_old"
                 )
                 options = {
-                    "lhead": f"cluster_{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}"
+                    "lhead": f"cluster_{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}"
                 }
         else:
-            if (edge_same_old.dst, edge_same_new.dst) in same_pairs:
+            if (to_addr(edge_same_old[1]), to_addr(edge_same_new[1])) in same_pairs:
                 # Source diff, Dest same (Cluster -> Node)
                 edge_source = (
-                    f"{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}_old"
+                    f"{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}_old"
                 )
                 edge_destination = (
-                    f"{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}"
+                    f"{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}"
                 )
                 options = {
-                    "ltail": f"cluster_{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}"
+                    "ltail": f"cluster_{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}"
                 }
             else:
                 # Source diff, Dest diff (Cluster -> Cluster)
                 edge_source = (
-                    f"{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}_old"
+                    f"{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}_old"
                 )
                 edge_destination = (
-                    f"{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}_old"
+                    f"{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}_old"
                 )
                 options = {
-                    "ltail": f"cluster_{to_text(edge_same_old.src)}_{to_text(edge_same_new.src)}",
-                    "lhead": f"cluster_{to_text(edge_same_old.dst)}_{to_text(edge_same_new.dst)}",
+                    "ltail": f"cluster_{to_text(edge_same_old[0])}_{to_text(edge_same_new[0])}",
+                    "lhead": f"cluster_{to_text(edge_same_old[1])}_{to_text(edge_same_new[1])}",
                 }
 
         diff_graph.add_edge(
@@ -205,10 +201,10 @@ def generate_diffview(
         )
 
     for e_del in edge_del:
-        e_old_src, e_old_dst = to_text(e_del.src), to_text(e_del.dst)
+        e_old_src, e_old_dst = to_text(e_del[0]), to_text(e_del[1])
         e_new_src, e_new_dst = (
-            to_text(topology.match_vertice_forward(vertex_addr_matching, e_del.src)),
-            to_text(topology.match_vertice_forward(vertex_addr_matching, e_del.dst)),
+            to_text(topology.match_vertice_forward(vertex_addr_matching, e_del[0])),
+            to_text(topology.match_vertice_forward(vertex_addr_matching, e_del[1])),
         )
 
         if f"{e_old_src}_{e_new_src}" in clustered_pairs:
@@ -249,10 +245,10 @@ def generate_diffview(
         )
 
     for e_add in edge_add:
-        e_new_src, e_new_dst = to_text(e_add.src), to_text(e_add.dst)
+        e_new_src, e_new_dst = to_text(e_add[0]), to_text(e_add[1])
         e_old_src, e_old_dst = (
-            to_text(topology.match_vertice_backward(vertex_addr_matching, e_add.src)),
-            to_text(topology.match_vertice_backward(vertex_addr_matching, e_add.dst)),
+            to_text(topology.match_vertice_backward(vertex_addr_matching, e_add[0])),
+            to_text(topology.match_vertice_backward(vertex_addr_matching, e_add[1])),
         )
 
         if f"{e_old_src}_{e_new_src}" in clustered_pairs:

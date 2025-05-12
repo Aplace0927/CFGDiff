@@ -11,6 +11,7 @@ import re
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from src.graph.vertex import Vertex
+from src.graph.edge import Edge
 
 
 def node_label_preprocess(lab: str):
@@ -129,11 +130,9 @@ def graph_isomorphism(g_old: nx.DiGraph, g_new: nx.DiGraph) -> tuple[
     list[tuple[Vertex, Vertex]],  # Same Vertices       - Mapping in (Old, New)
     list[tuple[Vertex, Vertex]],  # Different Vertices  - Mapping in (Old, New)
     list[tuple[str, str]],  # Vertex Address     - Mapping in (Old, New)
-    list[
-        tuple[tuple[str, str], tuple[str, str]]
-    ],  # Conserved Edges     - Mapping in (Old, New)
-    list[tuple[str, str]],  # Deleted Edges
-    list[tuple[str, str]],  # Added Edges
+    list[tuple[Edge, Edge]],  # Conserved Edges     - Mapping in (Old, New)
+    list[Edge],  # Deleted Edges
+    list[Edge],  # Added Edges
 ]:
     #
     # G = <V, E>, where E := V -> V
@@ -194,7 +193,7 @@ def graph_isomorphism(g_old: nx.DiGraph, g_new: nx.DiGraph) -> tuple[
     ]
 
     match_vertices_addr = [
-        (v_old.blk_addr, v_new.blk_addr) for (v_old, v_new) in match_vertices_pair
+        (v_old.name, v_new.name) for (v_old, v_new) in match_vertices_pair
     ]
 
     same_vertices = [

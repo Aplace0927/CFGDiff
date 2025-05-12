@@ -159,15 +159,15 @@ if __name__ == "__main__":
                     + f"+ {Gn.edges[edge]['branch']}:\n+ {v_src.llvm_ir_optype} ->\n+ {v_dst.llvm_ir_optype}\n"
                 )
 
-            """diffview.generate_diffview(
+            diffview.generate_diffview(
                 v_same,
                 v_diff,
-                v_addr_matching,``
+                v_addr_matching,
                 e_con,
                 e_old,
                 e_new,
                 func_name=f,
                 commit_hash=new_hash + "_" + old_hash,
-            )"""
+            )
 
 # Edit distance calculation should include the function symbol.

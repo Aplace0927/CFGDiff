@@ -23,8 +23,8 @@ def instruction_parse(llvm_ir: list[str]):
 
 
 class Vertex:
-    def __init__(self, blk_addr: str = "", ssa_id: int = -1, llvm_ir: list[str] = []):
-        self.blk_addr: str = blk_addr
+    def __init__(self, name: str = "", ssa_id: int = -1, llvm_ir: list[str] = []):
+        self.name: str = name
         self.ssa_id: int = ssa_id
         self.llvm_ir: list[str] = llvm_ir
         self.llvm_ir_optype: list[str] = instruction_parse(self.llvm_ir)
@@ -39,3 +39,6 @@ class Vertex:
             and self.llvm_ir == other.llvm_ir
             and self.ssa_id == other.ssa_id
         )
+
+    def addr(self) -> Optional[int]:
+        return None if self.name == "" else int(self.name.strip("Node"), 0)
