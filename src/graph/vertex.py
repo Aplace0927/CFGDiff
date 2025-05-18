@@ -28,7 +28,7 @@ class Vertex:
         self.ssa_id: int = ssa_id
         self.llvm_ir: list[str] = llvm_ir
         self.llvm_ir_optype: list[str] = instruction_parse(self.llvm_ir)
-        self.level: float = float("inf")
+        self.level: float = -1
 
     def __hash__(self):
         return hash("\n".join(self.llvm_ir))

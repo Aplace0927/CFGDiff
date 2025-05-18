@@ -10,6 +10,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from src.graph.edge import Edge
 from src.graph.vertex import Vertex
 
+IR_DIFF_WEIGHT = 0.4
+LEVEL_DIFF_WEIGHT = 0.3
+INDEG_DIFF_WEIGHT = 0.15
+OUTDEG_DIFF_WEIGHT = 0.15
+
+assert (
+    round(
+        IR_DIFF_WEIGHT + LEVEL_DIFF_WEIGHT + INDEG_DIFF_WEIGHT + OUTDEG_DIFF_WEIGHT, 3
+    )
+    == 1.000
+)
+
 
 def node_label_preprocess(lab: str):
     label = (
@@ -58,15 +70,65 @@ def string_edit_distance(s_old: str, s_new: str) -> float:
     )
 
 
-def vertex_edit_distance(v_old: Vertex, v_new: Vertex) -> float:
-    inst_old = v_old.llvm_ir_optype
-    inst_new = v_new.llvm_ir_optype
+def vertex_edit_distance(
+    g_old: nx.DiGraph, g_new: nx.digraph, v_old: str, v_new: str
+) -> float:
+    v_old_vertex, v_new_vertex = (
+        g_old.nodes[v_old]["vertex"],
+        g_new.nodes[v_new]["vertex"],
+    )
+
+    """
+    - Edit distance of LLVM IR abst instr
+    - Level difference
+    - Indegree / Outdegree difference
+    """
+
+    inst_old = v_old_vertex.llvm_ir_optype
+    inst_new = v_new_vertex.llvm_ir_optype
     dp_mat = np.zeros((len(inst_new) + 1, len(inst_old) + 1), dtype=np.float32)
 
-    if len(inst_new) == 0 or len(inst_old) == 0:
-        level_diff = 0xFFFFFFFF  # math.inf causes error in scipyl.linear_sum_assignment
+    """
+    LEVEL DIFFERENCE.
+    Position-wise percent similarity of the instruction. (between 0 and 1)
+    """
+    if v_old_vertex.level == -1 or v_new_vertex.level == -1:
+        level_diff = 1  # Match with nonexistent node costs 1
     else:
-        level_diff = abs(v_old.level - v_new.level)
+        v_old_percent = v_old_vertex.level / max(
+            max(g_old.nodes[v]["vertex"].level for v in g_old.nodes), 1
+        )
+        v_new_percent = v_new_vertex.level / max(
+            max(g_new.nodes[v]["vertex"].level for v in g_new.nodes), 1
+        )
+        level_diff = abs(v_old_percent - v_new_percent)
+
+    """
+    In/Out degree difference.
+    - The range of possible values of degree is [0, inf]. 
+    - MOST OF THE BLOCK HAS:
+        - 1 IN / 1 OUT for normal block
+        - 0 IN / n OUT for entry block
+        - n IN / 0 OUT for exit block
+        - 2 OUT for branch block
+        - n OUT for switch block
+
+    However most of blocks have less than 2 in/out degree.
+    Otherwise, that block could be determined as a fixed point of graph matching.
+    """
+
+    # IMPLEMENTATION
+    indeg_diff = abs(g_new.in_degree(v_new) - g_old.in_degree(v_old)) / max(
+        max(g_new.in_degree(v_new), g_old.in_degree(v_old)), 1
+    )
+    outdeg_diff = abs(g_new.out_degree(v_new) - g_old.out_degree(v_old)) / max(
+        max(g_new.out_degree(v_new), g_old.out_degree(v_old)), 1
+    )
+
+    """
+    IR Edit distance.
+    Since we are diffing between versions, most of each block's instruction length could be conserved.
+    """
 
     for i, j in itertools.product(range(len(inst_new) + 1), range(len(inst_old) + 1)):
         if i == 0:
@@ -86,7 +148,25 @@ def vertex_edit_distance(v_old: Vertex, v_new: Vertex) -> float:
                 dp_mat[i][j] = (
                     max(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
                 )
-    return dp_mat[-1][-1] + level_diff
+        ir_diff = (dp_mat[-1][-1] / max((len(inst_new) + len(inst_old)), 1)) * (
+            abs(len(inst_new) - len(inst_old)) / max(len(inst_new), len(inst_old), 1)
+        )
+
+    print(
+        v_old_vertex.llvm_ir_optype,
+        v_new_vertex.llvm_ir_optype,
+        ir_diff,
+        level_diff,
+        indeg_diff,
+        outdeg_diff,
+    )
+
+    return (
+        ir_diff * IR_DIFF_WEIGHT
+        + level_diff * LEVEL_DIFF_WEIGHT
+        + indeg_diff * INDEG_DIFF_WEIGHT
+        + outdeg_diff * OUTDEG_DIFF_WEIGHT
+    )
 
 
 def match_vertice_forward(v: list[tuple[int, int]], src: int) -> int:
@@ -153,24 +233,25 @@ def graph_isomorphism(g_old: nx.DiGraph, g_new: nx.DiGraph) -> tuple[
         enumerate(g_old.nodes), enumerate(g_new.nodes)
     ):
         edit_dist[old_idx][new_idx] = vertex_edit_distance(
-            g_old.nodes[old_node]["vertex"], g_new.nodes[new_node]["vertex"]
+            g_old, g_new, old_node, new_node
         )
 
     # 2. Min-cost Bipartite Graph Matching
 
-    v_old_id, v_new_id = map(list, linear_sum_assignment(edit_dist))
+    v_old_vertex_id, v_new_vertex_id = map(list, linear_sum_assignment(edit_dist))
 
-    match_cost = edit_dist[v_old_id, v_new_id]
+    match_cost = edit_dist[v_old_vertex_id, v_new_vertex_id]
     match_vertices_pair = [
         (
             g_old.nodes[g_old_array_index[old_id]]["vertex"],
             g_new.nodes[g_new_array_index[new_id]]["vertex"],
         )
-        for (old_id, new_id) in zip(v_old_id, v_new_id)
+        for (old_id, new_id) in zip(v_old_vertex_id, v_new_vertex_id)
     ]
 
     match_vertices_addr = [
-        (v_old.name, v_new.name) for (v_old, v_new) in match_vertices_pair
+        (v_old_vertex.name, v_new_vertex.name)
+        for (v_old_vertex, v_new_vertex) in match_vertices_pair
     ]
 
     same_vertices = [
@@ -238,6 +319,10 @@ def graph_isomorphism(g_old: nx.DiGraph, g_new: nx.DiGraph) -> tuple[
     )
 
 
+def get_root_node(g: nx.DiGraph) -> str:
+    return [n for n in g.nodes if g.in_degree(n) == 0][0]
+
+
 def build_cfg_from_dot(path: str) -> nx.DiGraph:
     G: nx.DiGraph = nx.nx_pydot.read_dot(path)
     CFG: nx.DiGraph = nx.DiGraph()
@@ -270,7 +355,7 @@ def build_cfg_from_dot(path: str) -> nx.DiGraph:
             CFG.add_edge(src, dst, branch=f"{src}:{dst}:next")
 
     for node, lvl in nx.single_source_shortest_path_length(
-        CFG, [n for n in CFG.nodes if CFG.in_degree(n) == 0][0]
+        CFG, get_root_node(CFG)
     ).items():
         CFG.nodes[node]["vertex"].level = lvl
 
