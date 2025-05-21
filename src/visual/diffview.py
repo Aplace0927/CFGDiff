@@ -46,12 +46,11 @@ def generate_diffview(
         diff_graph.add_node(
             pydot.Node(
                 f"{hex(v_same_old.addr())}_{hex(v_same_new.addr())}",
-                label="{"
-                + f"{str(v_same_old.level)}_{str(v_same_new.level)}\l"
-                + f"{hex(v_same_old.addr())}_{hex(v_same_new.addr())}\l|\t"
-                + "\l\t".join(v_same_old.llvm_ir_optype)
-                + "}",
-                shape="record",
+                label=f"{str(v_same_old.level)}_{str(v_same_new.level)}\\n"
+                + f"\\N\\n\\n"
+                + "\\l".join(v_same_old.llvm_ir_optype)
+                + "\\l",
+                shape="box",
                 fontname="Courier",
                 style="filled",
                 fillcolor=GREY_COLOR,
@@ -63,7 +62,7 @@ def generate_diffview(
         null_node = pydot.Node(
             "NULL",
             label="NULL",
-            shape="record",
+            shape="box",
             fontname="Courier",
             style="filled",
             fillcolor=BLACK_COLOR,
@@ -76,12 +75,11 @@ def generate_diffview(
                 old_node = null_node
                 new_node = pydot.Node(
                     f"NULL_{hex(v_diff_new.addr())}",
-                    label="{"
-                    + f"NULL_{str(v_diff_new.level)}\l"
-                    + f"NULL_{hex(v_diff_new.addr())}\l|\t"
-                    + "\l\t".join(v_diff_new.llvm_ir_optype)
-                    + "}",
-                    shape="record",
+                    label=f"NULL_{str(v_diff_new.level)}\\n"
+                    + f"\\N\\n\\n"
+                    + "\\l".join(v_diff_new.llvm_ir_optype)
+                    + "\\l",
+                    shape="box",
                     fontname="Courier",
                     style="filled",
                     fillcolor=GREEN_COLOR,
@@ -92,12 +90,11 @@ def generate_diffview(
             if v_diff_new.llvm_ir_optype == []:  # Something -> Empty
                 old_node = pydot.Node(
                     f"{hex(v_diff_old.addr())}_NULL",
-                    label="{"
-                    + f"{str(v_diff_old.level)}_NULL\l"
-                    + f"{hex(v_diff_old.addr())}_NULL\l|\t"
-                    + "\l\t".join(v_diff_old.llvm_ir_optype)
-                    + "}",
-                    shape="record",
+                    label=f"{str(v_diff_old.level)}_NULL\l"
+                    + f"\\N\\n\\n"
+                    + "\\l".join(v_diff_old.llvm_ir_optype)
+                    + "\\l",
+                    shape="box",
                     fontname="Courier",
                     style="filled",
                     fillcolor=RED_COLOR,
@@ -111,33 +108,31 @@ def generate_diffview(
                 )
                 old_node = pydot.Node(
                     f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_old",
-                    label="{"
-                    + f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_old\l"
-                    + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}\l|\t"
-                    + "\l\t".join(v_diff_old.llvm_ir_optype)
-                    + "}",
-                    shape="record",
+                    label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_old\\n"
+                    + f"\\N\\n\\n"
+                    + "\\l".join(v_diff_old.llvm_ir_optype)
+                    + "\\l",
+                    shape="box",
                     fontname="Courier",
                     style="filled",
                     fillcolor=RED_COLOR,
                 )
                 new_node = pydot.Node(
                     f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_new",
-                    label="{"
-                    + f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_new\l"
-                    + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}\l|\t"
-                    + "\l\t".join(v_diff_new.llvm_ir_optype)
-                    + "}",
-                    shape="record",
+                    label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_new\\n"
+                    + f"\\N\\n\\n"
+                    + "\\l".join(v_diff_new.llvm_ir_optype)
+                    + "\\l",
+                    shape="box",
                     fontname="Courier",
                     style="filled",
                     fillcolor=GREEN_COLOR,
                 )
                 cluster = pydot.Subgraph(
                     f"cluster_{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}",
-                    label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_diff\l"
+                    label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_diff\\n"
                     + f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}",
-                    shape="record",
+                    shape="box",
                     fontname="Courier",
                     color=GREY_COLOR,
                 )
