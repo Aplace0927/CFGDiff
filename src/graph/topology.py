@@ -6,12 +6,14 @@ import networkx as nx
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from typing import Iterable
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from src.graph.edge import Edge
 from src.graph.vertex import Vertex
 
-IR_DIFF_WEIGHT = 0.4
-LEVEL_DIFF_WEIGHT = 0.3
+IR_DIFF_WEIGHT = 0.50
+LEVEL_DIFF_WEIGHT = 0.20
 INDEG_DIFF_WEIGHT = 0.15
 OUTDEG_DIFF_WEIGHT = 0.15
 
@@ -50,7 +52,7 @@ def node_label_preprocess(lab: str):
     return int(ssa_id.strip(":\n")), inst_acc, nextblk
 
 
-def string_edit_distance(s_old: str, s_new: str) -> float:
+def boolean_edit_distance(s_old: Iterable, s_new: Iterable) -> float:
     dp_mat = np.zeros((len(s_new) + 1, len(s_old) + 1), dtype=np.uint32)
     for i, j in itertools.product(range(len(s_new) + 1), range(len(s_old) + 1)):
         if i == 0:
@@ -63,11 +65,7 @@ def string_edit_distance(s_old: str, s_new: str) -> float:
             dp_mat[i][j] = (
                 min(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
             )
-    return (
-        1 - (dp_mat[-1][-1] / max_len)
-        if (max_len := max(len(s_new), len(s_old)))
-        else 1.0
-    )
+    return dp_mat[-1][-1] / max(len(s_new), len(s_old), 1)
 
 
 def vertex_edit_distance(
@@ -86,7 +84,6 @@ def vertex_edit_distance(
 
     inst_old = v_old_vertex.llvm_ir_optype
     inst_new = v_new_vertex.llvm_ir_optype
-    dp_mat = np.zeros((len(inst_new) + 1, len(inst_old) + 1), dtype=np.float32)
 
     """
     LEVEL DIFFERENCE.
@@ -130,36 +127,17 @@ def vertex_edit_distance(
     Since we are diffing between versions, most of each block's instruction length could be conserved.
     """
 
-    for i, j in itertools.product(range(len(inst_new) + 1), range(len(inst_old) + 1)):
-        if i == 0:
-            dp_mat[i][j] = j
-        elif j == 0:
-            dp_mat[i][j] = i
-        elif inst_new[i - 1] == inst_old[j - 1]:
-            dp_mat[i][j] = dp_mat[i - 1][j - 1]
-        else:
-            if inst_new[i - 1].startswith("call") and inst_old[j - 1].startswith(
-                "call"
-            ):
-                dp_mat[i][j] = max(
-                    dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]
-                ) + string_edit_distance(inst_new[i - 1], inst_old[j - 1])
-            else:
-                dp_mat[i][j] = (
-                    max(dp_mat[i - 1][j - 1], dp_mat[i - 1][j], dp_mat[i][j - 1]) + 1
-                )
-        ir_diff = (dp_mat[-1][-1] / max((len(inst_new) + len(inst_old)), 1)) * (
-            abs(len(inst_new) - len(inst_old)) / max(len(inst_new), len(inst_old), 1)
-        )
+    if v_old_vertex.level == -1 or v_new_vertex.level == -1:
+        ir_diff = 1
+    else:
+        ir_diff = boolean_edit_distance(inst_old, inst_new)
 
-    print(
-        v_old_vertex.llvm_ir_optype,
-        v_new_vertex.llvm_ir_optype,
-        ir_diff,
-        level_diff,
-        indeg_diff,
-        outdeg_diff,
-    )
+    inst_old_call_ops = [op for op in inst_old if op.startswith("call")]
+    inst_new_call_ops = [op for op in inst_new if op.startswith("call")]
+
+    if inst_old_call_ops and inst_new_call_ops:
+        ir_diff *= 0.3
+        ir_diff += 0.7 * boolean_edit_distance(inst_old_call_ops, inst_new_call_ops)
 
     return (
         ir_diff * IR_DIFF_WEIGHT
