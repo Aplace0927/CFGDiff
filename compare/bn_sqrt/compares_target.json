@@ -1,11 +1,5 @@
 [
     {
-        "hash": "fecb3aae22aeda493f348739ebf7943071ecdbe1",
-        "symbol": [
-            "BN_mod_sqrt"
-        ]
-    },
-    {
         "hash": "9eafb53614bf65797db25f467946e735e1b43dc9",
         "symbol": [
             "BN_mod_sqrt"
@@ -97,12 +91,6 @@
     },
     {
         "hash": "349807608f31b20af01a342d0072bb92e0b036e2",
-        "symbol": [
-            "BN_mod_sqrt"
-        ]
-    },
-    {
-        "hash": "b39fc560612984e65ec30d7f37487303bf514fb3",
         "symbol": [
             "BN_mod_sqrt"
         ]

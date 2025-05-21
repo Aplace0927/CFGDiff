@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 import src.graph.topology as topology
 import src.visual.diffview as diffview
 
-TARGET = "sm2_crypt"
+TARGET = "bn_sqrt"
 
 
 def file_diff(f_new: str, f_old: str) -> bool:

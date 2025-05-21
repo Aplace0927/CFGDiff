@@ -122,7 +122,7 @@ if __name__ == "__main__":
     for key in CONFIG:
         os.environ[key] = CONFIG[key]
 
-    target_name = "statemem_client"
+    target_name = "sm2_crypt"
 
     commit_hashes = read_commit_hashes(target_name)
 
