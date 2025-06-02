@@ -48,7 +48,7 @@ def generate_diffview(
                 f"{hex(v_same_old.addr())}_{hex(v_same_new.addr())}",
                 label=f"{str(v_same_old.level)}_{str(v_same_new.level)}\\n"
                 + f"\\N\\n\\n"
-                + "\\l".join(v_same_old.llvm_ir_optype)
+                + "\\l".join(v_same_old.llvm_ir)
                 + "\\l",
                 shape="box",
                 fontname="Courier",
@@ -77,7 +77,7 @@ def generate_diffview(
                     f"NULL_{hex(v_diff_new.addr())}",
                     label=f"NULL_{str(v_diff_new.level)}\\n"
                     + f"\\N\\n\\n"
-                    + "\\l".join(v_diff_new.llvm_ir_optype)
+                    + "\\l".join(v_diff_new.llvm_ir)
                     + "\\l",
                     shape="box",
                     fontname="Courier",
@@ -92,7 +92,7 @@ def generate_diffview(
                     f"{hex(v_diff_old.addr())}_NULL",
                     label=f"{str(v_diff_old.level)}_NULL\l"
                     + f"\\N\\n\\n"
-                    + "\\l".join(v_diff_old.llvm_ir_optype)
+                    + "\\l".join(v_diff_old.llvm_ir)
                     + "\\l",
                     shape="box",
                     fontname="Courier",
@@ -110,7 +110,7 @@ def generate_diffview(
                     f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_old",
                     label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_old\\n"
                     + f"\\N\\n\\n"
-                    + "\\l".join(v_diff_old.llvm_ir_optype)
+                    + "\\l".join(v_diff_old.llvm_ir)
                     + "\\l",
                     shape="box",
                     fontname="Courier",
@@ -121,7 +121,7 @@ def generate_diffview(
                     f"{hex(v_diff_old.addr())}_{hex(v_diff_new.addr())}_new",
                     label=f"{str(v_diff_old.level)}_{str(v_diff_new.level)}_new\\n"
                     + f"\\N\\n\\n"
-                    + "\\l".join(v_diff_new.llvm_ir_optype)
+                    + "\\l".join(v_diff_new.llvm_ir)
                     + "\\l",
                     shape="box",
                     fontname="Courier",

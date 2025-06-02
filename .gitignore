@@ -6,3 +6,5 @@ diffviews*
 diff_output
 asm_lift
 __pycache__
+src/build/*
+compare/*

@@ -14,7 +14,7 @@ def instruction_parse(llvm_ir: list[str]):
                 res.append("call ")
             else:
                 res.append(f"call {func_name[0]}")
-        elif inst_split[1] == "=":
+        elif len(inst_split) > 2 and inst_split[1] == "=":
             res.append(inst_split[2])
         else:
             res.append(inst_split[0])
